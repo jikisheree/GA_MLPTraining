@@ -13,11 +13,11 @@ public class GA {
     public GA(int mlp_num){
         MLP_list = new HashMap<>();
         this.mlp_num = mlp_num;
-        init_mlp();
         fitness_list = new ArrayList<>();
         MLP_toBeMated= new LinkedList<>();
         MLP_selected = new LinkedList<>();
         MLP_child = new LinkedList<>();
+        init_mlp();
 
     }
 
@@ -34,23 +34,34 @@ public class GA {
 
     private void init_mlp(){
 
-        double min = 1000000.0;
+        double min_fitness = 1000000.0;
+//        List<Double> old_fitness_list = new ArrayList<>();
 
         for (int i=0; i<mlp_num; i++){
             Neuron_network mlp = init_each_mlp();
-            double new_fitness = fitness_scaling(mlp.get_avError());
-            MLP_list.put(mlp, new Triplet<>(new_fitness));
-            fitness_list.add(new_fitness);
+            double fitness = mlp.get_avError();
 
+            if(fitness < min_fitness)
+                min_fitness = fitness;
+
+            MLP_list.put(mlp, new Triplet<>(fitness));
 
         }
+        fitness_scaling(min_fitness);
     }
 
-    private double fitness_scaling(double old_fitness){
+    private void fitness_scaling(double min_fitness){
         final int k = 1;
-        double eval =
 
-        return eval;
+        Set<Entry<Neuron_network, Triplet<Double, Integer, Double>>> setHm = MLP_list.entrySet();
+
+        // eval new fitness value to each mlp
+        for (Entry<Neuron_network, Triplet<Double, Integer, Double>> e : setHm) {
+                double old_fitness = e.getValue().getFirst();
+                double new_fitness = 1/(k+old_fitness-min_fitness);
+                e.getValue().setFirst(new_fitness);
+                fitness_list.add(new_fitness);
+        }
     }
 
     private void selection(){
@@ -132,6 +143,9 @@ public class GA {
             }
         }
         child.setWeightOfLayer(childWeight);
+        // discard parents from selected pool
+        MLP_selected.remove(mom);
+        MLP_selected.remove(dad);
 
         return child;
     }
@@ -174,19 +188,24 @@ public class GA {
     }
 
     private void setNew_population(){
-        MLP_list.clear();
-        for (Neuron_network e : MLP_child) {
-            double new_fitness = fitness_scaling(e.get_avError());
-            MLP_list.put(e, new Triplet<>(new_fitness));
-            fitness_list.add(new_fitness);
-        }
-    }
 
-    private void clear_old_population(){
+        double min_fitness = 1000000.0;
+//        List<Double> old_fitness_list = new ArrayList<>();
+
+        MLP_list.clear();
         fitness_list.clear();
         MLP_selected.clear();
         MLP_toBeMated.clear();
+        for (Neuron_network e : MLP_child) {
+            double fitness = e.get_avError();
+
+            if(fitness < min_fitness)
+                min_fitness = fitness;
+
+            MLP_list.put(e, new Triplet<>(fitness));
+        }
         MLP_child.clear();
+        fitness_scaling(min_fitness);
     }
 
     public void start_GA(){
@@ -195,8 +214,7 @@ public class GA {
 
         // training each generation
         while (i < 200) {
-            if(i>0)
-                clear_old_population();
+
             selection();
             mating();
             add_finalPop();

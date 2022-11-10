@@ -130,21 +130,21 @@ public class Neuron_network {
 
                     // feed forward -> find errors -> calculate new weight by doing back propagation
                     feedForward();
-                    System.out.println("hi");
                     errorCalculation(lineNum, true);
                     backPropagation();
 
                     // console out
                     double d = training_desired.get(lineNum).get(0);
                     double g = nodeValue[nodeLayerNum - 1][0];
-                System.out.println("desired:" + (int)d + " get: "+ g + "\t error_n: " + Math.abs(d-g));
+
+                    System.out.println("desired:" + (int)d + " get: "+ g + "\t error_n: " + Math.abs(d-g));
 
                     // add the mean squared error of each data in this epoch to the summation of error
                     sum_error += 0.5 * Math.pow(error[0], 2);
                 }
                 // average error of each epoch
                 avgError = sum_error / training_dataSet.size();
-            System.out.println("N epoch: "+n +"\t" + avgError);
+            System.out.println("N epoch: "+n +"\t"+"Epoch Avg error"+ avgError);
                 n++;
             }
             // print avg error in the last epoch
