@@ -14,7 +14,6 @@ public class Main_run {
     public static void run_network1() {
         for (int dataSet = 0; dataSet < maxIteration1; dataSet++) {
             Neuron_network nn = new Neuron_network(minError1, learningRate1, mm1, maxEpoch1, bias1, hidden1, dataSet);
-            nn.training();
             nn.testing();
         }
     }
@@ -23,10 +22,9 @@ public class Main_run {
 
         Data_Manager.getData();
 
-        // flood dataset
-        run_network1();
+//        run_network1();
 
-        GA ga = new GA(100);
+        GA ga = new GA(50);
         ga.start_GA();
     }
 

@@ -103,7 +103,7 @@ public class Data_Manager {
                                 Desired_line.add(1.0);
                         }else if(i>1)
                             normValue = normalize(Double.parseDouble(eachLine[i]));
-                            System.out.println(normValue);
+//                            System.out.println(normValue);
                             Input_line.add(normValue);
                     }
 

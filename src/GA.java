@@ -9,6 +9,7 @@ public class GA {
     private List<Neuron_network> MLP_toBeMated;
     private List<Neuron_network> MLP_child;
     private final int mlp_num;
+    private Neuron_network best_mlp;
 
     public GA(int mlp_num){
         MLP_list = new HashMap<>();
@@ -27,8 +28,8 @@ public class GA {
         Double bias = 1.0;
         Double learningRate = 0.02;
         Double mm = 0.6;
-        int[] hidden = {5,10,10,5};
-        int dataSet = 10;
+        int[] hidden = {20,15,10};
+        int dataSet = 1;
         return new Neuron_network(minError, learningRate, mm, maxEpoch, bias, hidden, dataSet);
     }
 
@@ -39,6 +40,7 @@ public class GA {
 
         for (int i=0; i<mlp_num; i++){
             Neuron_network mlp = init_each_mlp();
+            mlp.training();
             double fitness = mlp.get_avError();
 
             if(fitness < min_fitness)
@@ -57,11 +59,14 @@ public class GA {
 
         // eval new fitness value to each mlp
         for (Entry<Neuron_network, Triplet<Double, Integer, Double>> e : setHm) {
+
                 double old_fitness = e.getValue().getFirst();
                 double new_fitness = 1/(k+old_fitness-min_fitness);
                 e.getValue().setFirst(new_fitness);
                 fitness_list.add(new_fitness);
         }
+        // rank fitness of each chromosome
+        Collections.sort(fitness_list);
     }
 
     private void selection(){
@@ -69,8 +74,6 @@ public class GA {
         double min = 0.5;
         double max = 1.5;
 
-        // rank fitness of each chromosome
-        Collections.sort(fitness_list);
         Set<Entry<Neuron_network, Triplet<Double, Integer, Double>>> setHm = MLP_list.entrySet();
 
         // insert the rank and select prob to each mlp
@@ -80,6 +83,7 @@ public class GA {
                     int rank = i+1;
                     MLP_list.get(e.getKey()).setSecond(i+1);
                     double p = (1.0/mlp_num)*(min+((max-min)*(rank-1.0/mlp_num-1.0)));
+                    e.getValue().setThird(p);
                 }
             }
         }
@@ -96,7 +100,7 @@ public class GA {
         for (Entry<Neuron_network, Triplet<Double, Integer, Double>> e : setHm) {
             double n = mlp_num*(e.getValue().getThird());
             for(sum+=n; ptr<sum; ptr++)
-                MLP_selected.add((Neuron_network) e);
+                MLP_selected.add(e.getKey());
         }
 
     }
@@ -104,7 +108,7 @@ public class GA {
 
         select_into_matingPool();
 
-        for(int i=0; i<MLP_toBeMated.size(); i++){
+        for(int i=0; i<MLP_toBeMated.size(); i+=2){
             Pair<Neuron_network, Neuron_network> mate_pair =
                     new Pair<>(MLP_toBeMated.get(i), MLP_toBeMated.get(i+1));
                     MLP_child.add(crossover(mate_pair));
@@ -124,10 +128,11 @@ public class GA {
         Weight_store[] dadWeight = dad.getWeightOfLayer();
         Weight_store[] childWeight = new Weight_store[momWeight.length];
 
-        for (int layer=weightLayerNum-1; layer>0; layer--){
-            int numNodeJ = momWeight[layer].getWeightData().length;
+        for (int layer=weightLayerNum-1; layer>=0; layer--){
+            int numNodeJ = momWeight[layer].getRowNum();
+            int numNodeI = momWeight[layer].getColNum();
+            childWeight[layer] = new Weight_store(numNodeJ, numNodeI, false);
             for (int j=numNodeJ-1; j>=0; j--){
-                int numNodeI = momWeight[layer].getWeightData()[j].length;
                 for(int i=numNodeI-1; i>=0; i--){
                     double p = 0.5;
                     double q = Math.random();
@@ -136,7 +141,6 @@ public class GA {
                         parent = momWeight[layer];
                     else
                         parent = dadWeight[layer];
-                        childWeight[layer] = new Weight_store(numNodeJ, numNodeI, false);
                         Double weight = parent.getWeight(j,i);
                         childWeight[layer].setWeight(j,i,weight);
                 }
@@ -170,20 +174,29 @@ public class GA {
         }
     }
 
-    private void add_finalPop(){
-        int diff_pop = MLP_list.size()- MLP_child.size();
+    private void finalPop(){
+        int diff_pop = Math.abs(MLP_list.size()- MLP_child.size());
         int track = 0;
         Random rand = new Random();
         int random_num;
 
-        while(track<diff_pop) {
-            random_num = rand.nextInt(100);
-            if(random_num < 40) {
-                Random r = new Random();
-                int randomIndex = r.nextInt(MLP_selected.size());
-                MLP_child.add(MLP_selected.get(randomIndex));
+        if(MLP_list.size()>MLP_child.size()) {
+            while (track < diff_pop) {
+                random_num = rand.nextInt(100);
+                if (random_num < 40) {
+                    Random r = new Random();
+                    int randomIndex = r.nextInt(MLP_selected.size());
+                    MLP_child.add(MLP_selected.get(randomIndex));
+                }
+                track++;
             }
-            track++;
+        }else if(MLP_list.size()<MLP_child.size()){
+            List<Neuron_network> temp = new LinkedList<>();
+            for(int i=0; i<MLP_list.size(); i++){
+                temp.add(MLP_child.get(i));
+            }
+            MLP_child.clear();
+            MLP_child.addAll(temp);
         }
     }
 
@@ -197,15 +210,31 @@ public class GA {
         MLP_selected.clear();
         MLP_toBeMated.clear();
         for (Neuron_network e : MLP_child) {
+            e.training();
             double fitness = e.get_avError();
+
+            MLP_list.put(e, new Triplet<>(fitness));
 
             if(fitness < min_fitness)
                 min_fitness = fitness;
-
-            MLP_list.put(e, new Triplet<>(fitness));
         }
         MLP_child.clear();
         fitness_scaling(min_fitness);
+    }
+
+    private void resultOfGen(int i){
+        Set<Entry<Neuron_network, Triplet<Double, Integer, Double>>> setHm = MLP_list.entrySet();
+        double best_fitness = fitness_list.get(fitness_list.size()-1);
+
+        for (Entry<Neuron_network, Triplet<Double, Integer, Double>> e : setHm) {
+                double e_fitness = e.getValue().getFirst();
+                if(e_fitness == best_fitness){
+                    best_mlp = e.getKey();
+                }
+        }
+        System.out.println("Best MLP result of gen "+i);
+        best_mlp.training();
+        System.out.println("Sum square error of best mlp is "+best_mlp.get_avError());
     }
 
     public void start_GA(){
@@ -213,12 +242,20 @@ public class GA {
         int i = 0;
 
         // training each generation
-        while (i < 200) {
+        while (i < 100) {
 
+            System.out.println("gen "+i+" is selecting.....");
+            System.out.println("fitness: ");
+            fitness_list.forEach(value -> System.out.print(value+ " "));
             selection();
+            System.out.println("gen "+i+" is mating.....");
             mating();
-            add_finalPop();
+            System.out.println("gen "+i+" is fulling population.....");
+            finalPop();
+            System.out.println("gen "+i+" is setting new population.....");
             setNew_population();
+            System.out.println("gen "+i+" is calculating result of .....");
+            resultOfGen(i);
 
             i++;
         }

@@ -46,4 +46,12 @@ public class Weight_store {
         return weightData;
     }
 
+    public int getRowNum(){
+        return row;
+    }
+
+    public int getColNum(){
+        return column;
+    }
+
 }
